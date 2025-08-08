@@ -1,15 +1,13 @@
 (() => {
-  // ====== Config ======
   const BASE_SPEED = 7,
     SPEEDUP_EVERY = 5,
     SPEEDUP_STEP = 0.6;
 
-  // Responsive GRID size based on viewport
   function gridForWidth(w) {
-    if (w < 360) return 13; // very small phones
-    if (w < 480) return 15; // small phones
-    if (w < 768) return 17; // phones / small tablets
-    return 21; // tablets / desktop
+    if (w < 360) return 13;
+    if (w < 480) return 15;
+    if (w < 768) return 17;
+    return 21;
   }
 
   const COLORS = {
@@ -26,7 +24,6 @@
     food: "#ffcf6b",
   };
 
-  // ====== State ======
   const canvas = document.getElementById("board");
   const ctx = canvas.getContext("2d");
   const scoreEl = document.getElementById("score");
@@ -36,6 +33,7 @@
   const btnStart = document.getElementById("btnStart");
   const btnPause = document.getElementById("btnPause");
   const btnRestart = document.getElementById("btnRestart");
+  const dpadEl = document.getElementById("dpad");
 
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   function resizeCanvas() {
@@ -50,7 +48,7 @@
   let best = Number(localStorage.getItem(storageKey) || 0);
   bestEl.textContent = best;
 
-  let cells = gridForWidth(window.innerWidth), // responsive cell count
+  let cells = gridForWidth(window.innerWidth),
     cell,
     snake,
     dir,
@@ -64,11 +62,77 @@
     lastStepAt,
     accumulator;
 
+  const root = document.documentElement;
+  const headerEl = document.querySelector("header");
+  const controlsWrap = document.querySelector(".controls");
+  function fitLayout() {
+    const isMobile = window.innerWidth < 600;
+    root.classList.toggle("no-scroll", isMobile);
+    document.body.classList.toggle("no-scroll", isMobile);
+
+    if (!isMobile) {
+      root.style.setProperty("--board-max", "520px");
+      root.style.setProperty("--dpad-btn", "64px");
+      return;
+    }
+
+    const vh = window.innerHeight;
+    const headerH = headerEl?.getBoundingClientRect().height || 0;
+    const controlsH = controlsWrap?.getBoundingClientRect().height || 0;
+    const topGaps = 16;
+    const bottomSafe = 18;
+
+    let available = vh - headerH - topGaps - bottomSafe;
+
+    const gap = 8;
+    let btn = 56;
+    const minBoard = 300;
+    const maxBoard = Math.min(420, Math.floor(window.innerWidth * 0.92));
+
+    function fits(btnSize) {
+      const dpadHeight = 3 * btnSize + 2 * gap;
+      const boardTarget = Math.min(maxBoard, available - dpadHeight - 12);
+      return boardTarget >= minBoard ? boardTarget : null;
+    }
+
+    const candidates = [64, 60, 56, 52, 48, 44];
+    let boardSize = null;
+    for (const size of candidates) {
+      const ok = fits(size);
+      if (ok) {
+        btn = size;
+        boardSize = ok;
+        break;
+      }
+    }
+    if (!boardSize) {
+      btn = 44;
+      const dpadHeight = 3 * btn + 2 * gap;
+      boardSize = Math.max(minBoard, available - dpadHeight - 8);
+    }
+
+    root.style.setProperty("--dpad-gap", `${gap}px`);
+    root.style.setProperty("--dpad-btn", `${btn}px`);
+    root.style.setProperty("--board-max", `${Math.round(boardSize)}px`);
+  }
+
+  fitLayout();
+  window.addEventListener(
+    "resize",
+    debounce(() => {
+      fitLayout();
+      const cls = gridForWidth(window.innerWidth);
+      if (cls !== cells && (!started || paused || !alive)) {
+        cells = cls;
+        initGame();
+        setOverlay(true, "Click Start to Play");
+      }
+    }, 120)
+  );
+
   function initGame() {
-    // update grid for current viewport
     cells = gridForWidth(window.innerWidth);
 
-    // start snake near the center for any grid size
     const cx = Math.floor(cells / 2);
     const cy = Math.floor(cells / 2);
 
@@ -82,7 +146,7 @@
     score = 0;
     movesPerSec = BASE_SPEED;
     alive = true;
-    paused = true; // start paused until user clicks Start
+    paused = true;
     lastStepAt = performance.now();
     accumulator = 0;
 
@@ -132,7 +196,6 @@
       return die();
 
     snake.unshift(head);
-
     if (head.x === food.x && head.y === food.y) {
       updateScore(1);
       placeFood();
@@ -158,7 +221,6 @@
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, w, h);
 
-    // grid
     ctx.strokeStyle = COLORS.grid;
     ctx.lineWidth = Math.max(1, DPR);
     ctx.beginPath();
@@ -170,7 +232,6 @@
     }
     ctx.stroke();
 
-    // food
     drawRoundedRect(
       food.x * cell,
       food.y * cell,
@@ -180,7 +241,6 @@
       COLORS.food
     );
 
-    // snake (head last for eyes)
     for (let i = snake.length - 1; i >= 0; i--) {
       const s = snake[i];
       const isHead = i === 0;
@@ -305,6 +365,7 @@
       e.preventDefault();
     }
   });
+
   btnPause.addEventListener("click", () => {
     if (!started) return;
     togglePause();
@@ -312,17 +373,20 @@
   btnRestart.addEventListener("click", restart);
   btnStart.addEventListener("click", startGame);
 
-  document.getElementById("dpad").addEventListener("click", (e) => {
+  dpadEl.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-dir]");
     if (!b) return;
-    const d = b.getAttribute("data-dir");
     const map = {
       up: { x: 0, y: -1 },
       down: { x: 0, y: 1 },
       left: { x: -1, y: 0 },
       right: { x: 1, y: 0 },
     };
-    setDir(map[d]);
+    setDir(map[b.getAttribute("data-dir")]);
+  });
+
+  canvas.addEventListener("touchmove", (e) => e.preventDefault(), {
+    passive: false,
   });
 
   let touchStart = null;
@@ -366,7 +430,6 @@
       setOverlay(false);
     }
   }
-
   function togglePause() {
     if (!alive) return;
     paused = !paused;
@@ -383,23 +446,11 @@
     btnPause.textContent = "Pause";
   }
 
-  let lastClass = gridForWidth(window.innerWidth);
-  window.addEventListener(
-    "resize",
-    debounce(() => {
-      const cls = gridForWidth(window.innerWidth);
-      if (cls !== lastClass) {
-        lastClass = cls;
-        if (!started || paused || !alive) initGame();
-      }
-    }, 150)
-  );
-
   function debounce(fn, wait) {
     let t;
-    return (...args) => {
+    return (...a) => {
       clearTimeout(t);
-      t = setTimeout(() => fn.apply(null, args), wait);
+      t = setTimeout(() => fn(...a), wait);
     };
   }
 

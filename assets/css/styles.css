@@ -7,13 +7,26 @@
   --danger: #ff6b6b;
   --grid: #252a52;
   --glow: 0 0 12px rgba(41, 241, 156, 0.6);
+
+  --board-max: 520px;
+  --dpad-btn: 64px;
+  --dpad-gap: 10px;
 }
+
 * {
   box-sizing: border-box;
 }
 html,
 body {
   height: 100%;
+}
+
+html.no-scroll,
+body.no-scroll {
+  overflow: hidden;
+  height: 100%;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 body {
@@ -38,7 +51,6 @@ body {
   justify-items: center;
 }
 
-/* HEADER */
 header {
   display: grid;
   gap: 14px;
@@ -117,7 +129,6 @@ header {
   box-shadow: 0 0 14px rgba(41, 241, 156, 0.45);
 }
 
-/* BOARD */
 .board-wrap {
   background: linear-gradient(180deg, #121531, #0f1229);
   border: 1px solid #232955;
@@ -125,9 +136,8 @@ header {
   padding: 14px;
   position: relative;
 
-  /* NEW: responsive board sizing */
   width: 100%;
-  max-width: 520px; /* desktop-ish default */
+  max-width: var(--board-max);
   margin: 0 auto;
 }
 canvas {
@@ -138,7 +148,6 @@ canvas {
   background: var(--panel);
 }
 
-/* CONTROLS SECTION (under board) */
 .controls {
   display: flex;
   flex-direction: column;
@@ -149,19 +158,18 @@ canvas {
   width: 100%;
 }
 
-/* D-PAD */
 .dpad {
   display: grid;
-  grid-template-columns: repeat(3, 64px);
-  grid-template-rows: repeat(3, 64px);
-  gap: 10px;
+  grid-template-columns: repeat(3, var(--dpad-btn));
+  grid-template-rows: repeat(3, var(--dpad-btn));
+  gap: var(--dpad-gap);
   justify-content: center;
   align-content: center;
   margin: 0 auto;
 }
 .dpad .btn {
-  width: 64px;
-  height: 64px;
+  width: var(--dpad-btn);
+  height: var(--dpad-btn);
   padding: 0;
   display: grid;
   place-items: center;
@@ -182,14 +190,12 @@ canvas {
   visibility: hidden;
 }
 
-/* Hide D-pad on desktop */
 @media (min-width: 900px) {
   .dpad {
     display: none;
   }
 }
 
-/* Help text */
 .help {
   opacity: 0.8;
   font-size: 0.55rem;
@@ -203,7 +209,6 @@ canvas {
   }
 }
 
-/* Overlay */
 .toast {
   position: absolute;
   inset: 0;
@@ -236,7 +241,6 @@ canvas {
   display: none !important;
 }
 
-/* BOARD size breakpoints */
 @media (max-width: 900px) {
   .board-wrap {
     max-width: 460px;
@@ -247,17 +251,11 @@ canvas {
     max-width: 380px;
   }
   .dpad .btn {
-    width: 56px;
-    height: 56px;
     font-size: 0.9rem;
   }
 }
 @media (max-width: 500px) {
   .board-wrap {
     max-width: 320px;
-  }
-  .dpad .btn {
-    width: 52px;
-    height: 52px;
   }
 }
