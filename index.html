@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NEON SNAKE</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/styles.css" />
+    <link rel="shortcut icon" href="assets/logo.svg" type="image/x-icon" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="brand">
+          <img src="./assets/logo.svg" alt="Snake" />
+          <span class="brand-name">NEON SNAKE</span>
+        </div>
+        <div class="hud">
+          <div class="pill">Score: <span id="score">0</span></div>
+          <div class="pill">Best: <span id="best">0</span></div>
+        </div>
+        <div class="controls-inline">
+          <button class="btn primary" id="btnStart" title="Start (Enter)">
+            Start
+          </button>
+          <button
+            class="btn"
+            id="btnPause"
+            aria-pressed="false"
+            title="Pause/Resume (Space)"
+          >
+            Pause
+          </button>
+          <button class="btn secondary" id="btnRestart" title="Restart (R)">
+            Restart
+          </button>
+        </div>
+      </header>
+
+      <div class="board-wrap">
+        <canvas
+          id="board"
+          width="672"
+          height="672"
+          aria-label="Snake game board"
+          role="img"
+        ></canvas>
+        <div class="toast" id="overlay">
+          <div class="toast-inner" id="overlayText">Click Start to Play</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="help">
+          Use arrow keys / WASD. Space = Pause. R = Restart. On mobile: use the
+          D‑pad.
+        </div>
+        <div class="dpad" id="dpad" aria-hidden="false">
+          <div class="spacer"></div>
+          <button class="btn" data-dir="up" aria-label="Up">▲</button>
+          <div class="spacer"></div>
+          <button class="btn" data-dir="left" aria-label="Left">◀</button>
+          <div class="spacer"></div>
+          <button class="btn" data-dir="right" aria-label="Right">▶</button>
+          <div class="spacer"></div>
+          <button class="btn" data-dir="down" aria-label="Down">▼</button>
+          <div class="spacer"></div>
+        </div>
+      </div>
+    </div>
+    <script src="assets/js/main.js"></script>
+  </body>
+</html>
