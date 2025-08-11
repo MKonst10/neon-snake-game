@@ -34,6 +34,7 @@
   const btnPause = document.getElementById("btnPause");
   const btnRestart = document.getElementById("btnRestart");
   const dpadEl = document.getElementById("dpad");
+  const toggleDpadEl = document.getElementById("toggleDpad");
 
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   function resizeCanvas() {
@@ -47,6 +48,22 @@
   const storageKey = "snakeHighScore_v1";
   let best = Number(localStorage.getItem(storageKey) || 0);
   bestEl.textContent = best;
+
+  const TOGGLE_KEY = "dpadEnabled_v1";
+  let dpadEnabled = JSON.parse(localStorage.getItem(TOGGLE_KEY) ?? "true");
+
+  function applyDpadPreference() {
+    document.body.classList.toggle("dpad-off", !dpadEnabled);
+    if (toggleDpadEl) toggleDpadEl.checked = dpadEnabled;
+    fitLayout();
+  }
+  if (toggleDpadEl) {
+    toggleDpadEl.addEventListener("change", (e) => {
+      dpadEnabled = e.target.checked;
+      localStorage.setItem(TOGGLE_KEY, JSON.stringify(dpadEnabled));
+      applyDpadPreference();
+    });
+  }
 
   let cells = gridForWidth(window.innerWidth),
     cell,
@@ -65,6 +82,7 @@
   const root = document.documentElement;
   const headerEl = document.querySelector("header");
   const controlsWrap = document.querySelector(".controls");
+
   function fitLayout() {
     const isMobile = window.innerWidth < 600;
     root.classList.toggle("no-scroll", isMobile);
@@ -73,21 +91,28 @@
     if (!isMobile) {
       root.style.setProperty("--board-max", "520px");
       root.style.setProperty("--dpad-btn", "64px");
+      root.style.setProperty("--dpad-gap", "10px");
       return;
     }
 
     const vh = window.innerHeight;
     const headerH = headerEl?.getBoundingClientRect().height || 0;
-    const controlsH = controlsWrap?.getBoundingClientRect().height || 0;
     const topGaps = 16;
     const bottomSafe = 18;
-
     let available = vh - headerH - topGaps - bottomSafe;
 
     const gap = 8;
     let btn = 56;
     const minBoard = 300;
     const maxBoard = Math.min(420, Math.floor(window.innerWidth * 0.92));
+
+    if (!dpadEnabled) {
+      const boardSize = Math.max(minBoard, Math.min(maxBoard, available - 8));
+      root.style.setProperty("--dpad-gap", `${gap}px`);
+      root.style.setProperty("--dpad-btn", `0px`);
+      root.style.setProperty("--board-max", `${Math.round(boardSize)}px`);
+      return;
+    }
 
     function fits(btnSize) {
       const dpadHeight = 3 * btnSize + 2 * gap;
@@ -117,6 +142,8 @@
   }
 
   fitLayout();
+  applyDpadPreference();
+
   window.addEventListener(
     "resize",
     debounce(() => {

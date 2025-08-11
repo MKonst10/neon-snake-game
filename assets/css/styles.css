@@ -39,9 +39,11 @@ body {
     )
     no-repeat fixed;
   color: var(--text);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
   font-size: 12px;
+  padding: 20px;
 }
 
 .wrap {
@@ -52,7 +54,8 @@ body {
 }
 
 header {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   padding: 16px;
   background: linear-gradient(180deg, #151835, #0f1226);
@@ -60,6 +63,7 @@ header {
   border-radius: 18px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
   justify-items: center;
+  align-items: center;
 }
 .brand {
   display: flex;
@@ -87,7 +91,7 @@ header {
   background: linear-gradient(180deg, #182041, #121735);
   border: 1px solid #22264d;
   padding: 8px 12px;
-  border-radius: 14px;
+  border-radius: 12px;
   font-weight: 800;
   box-shadow: inset var(--glow);
   font-size: 0.75rem;
@@ -237,6 +241,62 @@ canvas {
     opacity: 1;
   }
 }
+
+.mobile-toggle {
+  display: none;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.switch .slider {
+  width: 50px;
+  height: 26px;
+  border-radius: 12px;
+  background: #1a2342;
+  border: 1px solid #2b3160;
+  box-shadow: inset 0 0 8px rgba(41, 241, 156, 0.25);
+  position: relative;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.switch .slider::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #cfd6ff;
+  box-shadow: 0 0 8px rgba(106, 168, 255, 0.6);
+  transition: left 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.switch input:checked + .slider {
+  background: linear-gradient(180deg, #1f3d2f, #0f1f19);
+  box-shadow: 0 0 14px rgba(41, 241, 156, 0.45);
+}
+.switch input:checked + .slider::after {
+  left: 25px;
+  background: #aef7d7;
+  box-shadow: 0 0 10px rgba(41, 241, 156, 0.9);
+}
+.switch .switch-label {
+  font-size: 0.65rem;
+  opacity: 0.9;
+}
+
+body.dpad-off .dpad {
+  display: none !important;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -245,6 +305,12 @@ canvas {
   .board-wrap {
     max-width: 460px;
   }
+  .mobile-toggle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 2px;
+  }
 }
 @media (max-width: 768px) {
   .board-wrap {
@@ -252,6 +318,17 @@ canvas {
   }
   .dpad .btn {
     font-size: 0.9rem;
+  }
+  .brand img {
+    width: 30px;
+    height: 30px;
+  }
+  .btn {
+    padding: 10px;
+    font-size: 0.65rem;
+  }
+  .pill {
+    padding: 10px;
   }
 }
 @media (max-width: 500px) {
