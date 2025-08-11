@@ -10,6 +10,18 @@
     return 21;
   }
 
+  const SWIPE_MIN_PX_BASE = 14;
+  const SWIPE_MIN_RATIO = 0.06;
+  const SWIPE_VEL_BONUS_MS = 120;
+  function vibrate(ms) {
+    if (!hapticsEnabled) return;
+    if (navigator.vibrate) {
+      try {
+        navigator.vibrate(ms);
+      } catch {}
+    }
+  }
+
   const COLORS = {
     bg:
       getComputedStyle(document.documentElement)
@@ -35,6 +47,9 @@
   const btnRestart = document.getElementById("btnRestart");
   const dpadEl = document.getElementById("dpad");
   const toggleDpadEl = document.getElementById("toggleDpad");
+  const toggleHapticsEl = document.getElementById("toggleHaptics");
+  const HAPTICS_KEY = "hapticsEnabled_v1";
+  let hapticsEnabled = JSON.parse(localStorage.getItem(HAPTICS_KEY) ?? "true");
 
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   function resizeCanvas() {
@@ -65,6 +80,17 @@
     });
   }
 
+  function applyHapticsPreference() {
+    if (toggleHapticsEl) toggleHapticsEl.checked = hapticsEnabled;
+  }
+  if (toggleHapticsEl) {
+    toggleHapticsEl.addEventListener("change", (e) => {
+      hapticsEnabled = e.target.checked;
+      localStorage.setItem(HAPTICS_KEY, JSON.stringify(hapticsEnabled));
+      applyHapticsPreference();
+    });
+  }
+
   let cells = gridForWidth(window.innerWidth),
     cell,
     snake,
@@ -78,6 +104,9 @@
     movesPerSec,
     lastStepAt,
     accumulator;
+
+  let dirAnimFrames = 0,
+    dirAnimVec = { x: 0, y: 0 };
 
   const root = document.documentElement;
   const headerEl = document.querySelector("header");
@@ -143,6 +172,7 @@
 
   fitLayout();
   applyDpadPreference();
+  applyHapticsPreference();
 
   window.addEventListener(
     "resize",
@@ -189,6 +219,7 @@
 
   function updateScore(delta) {
     score += delta;
+    if (delta > 0) vibrate(15);
     scoreEl.textContent = score;
     if (score > best) {
       best = score;
@@ -232,6 +263,7 @@
   }
 
   function die() {
+    vibrate(70);
     alive = false;
     paused = true;
     setOverlay(true, `Game Over — Score ${score}`);
@@ -245,9 +277,11 @@
       h = canvas.height;
     cell = Math.floor(Math.min(w, h) / cells);
 
+    ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, w, h);
 
+    // grid
     ctx.strokeStyle = COLORS.grid;
     ctx.lineWidth = Math.max(1, DPR);
     ctx.beginPath();
@@ -280,6 +314,36 @@
         isHead ? COLORS.snakeHead : COLORS.snake
       );
       if (isHead) drawEyes(s);
+    }
+
+    if (dirAnimFrames > 0) {
+      const head = snake[0];
+      const cx = head.x * cell + cell / 2;
+      const cy = head.y * cell + cell / 2;
+      const len = cell * 0.55;
+      const w2 = cell * 0.35;
+      const ax = cx + dirAnimVec.x * (cell * 0.6);
+      const ay = cy + dirAnimVec.y * (cell * 0.6);
+
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, dirAnimFrames / 10);
+      ctx.fillStyle = COLORS.snakeHead;
+      ctx.beginPath();
+      if (dirAnimVec.x !== 0) {
+        const s = Math.sign(dirAnimVec.x);
+        ctx.moveTo(ax + s * len * 0.5, ay);
+        ctx.lineTo(ax - s * len * 0.4, ay - w2 * 0.5);
+        ctx.lineTo(ax - s * len * 0.4, ay + w2 * 0.5);
+      } else {
+        const s = Math.sign(dirAnimVec.y);
+        ctx.moveTo(ax, ay + s * len * 0.5);
+        ctx.lineTo(ax - w2 * 0.5, ay - s * len * 0.4);
+        ctx.lineTo(ax + w2 * 0.5, ay - s * len * 0.4);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      dirAnimFrames--;
     }
   }
 
@@ -369,6 +433,10 @@
     if (!alive || paused) return;
     if (d.x === -dir.x && d.y === -dir.y) return;
     pendingDir = d;
+
+    dirAnimVec = { x: d.x, y: d.y };
+    dirAnimFrames = 10;
+    vibrate(8);
   }
 
   window.addEventListener("keydown", (e) => {
@@ -412,31 +480,54 @@
     setDir(map[b.getAttribute("data-dir")]);
   });
 
-  canvas.addEventListener("touchmove", (e) => e.preventDefault(), {
-    passive: false,
-  });
-
   let touchStart = null;
+
   canvas.addEventListener(
     "touchstart",
     (e) => {
-      if (!e.touches[0]) return;
-      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      const t = e.touches[0];
+      if (!t) return;
+      touchStart = {
+        x: t.clientX,
+        y: t.clientY,
+        time: performance.now(),
+        decided: false,
+      };
     },
     { passive: true }
   );
+
   canvas.addEventListener(
-    "touchend",
+    "touchmove",
     (e) => {
-      if (!touchStart) return;
-      const t = e.changedTouches[0];
-      const dx = t.clientX - touchStart.x,
-        dy = t.clientY - touchStart.y;
+      if (!touchStart || touchStart.decided) return;
+      const t = e.touches[0];
+      if (!t) return;
+
+      const dx = t.clientX - touchStart.x;
+      const dy = t.clientY - touchStart.y;
       const ax = Math.abs(dx),
         ay = Math.abs(dy);
-      if (Math.max(ax, ay) < 20) return;
+
+      const vw = Math.min(window.innerWidth, window.innerHeight);
+      let threshold = Math.max(SWIPE_MIN_PX_BASE, vw * SWIPE_MIN_RATIO);
+      const dt = performance.now() - touchStart.time;
+      if (dt < SWIPE_VEL_BONUS_MS) threshold *= 0.7;
+
+      if (Math.max(ax, ay) < threshold) return;
+
       if (ax > ay) setDir({ x: Math.sign(dx), y: 0 });
       else setDir({ x: 0, y: Math.sign(dy) });
+
+      touchStart.decided = true;
+      e.preventDefault();
+    },
+    { passive: false }
+  );
+
+  canvas.addEventListener(
+    "touchend",
+    () => {
       touchStart = null;
     },
     { passive: true }

@@ -246,6 +246,10 @@ canvas {
   display: none;
 }
 
+.toggles-row {
+  gap: 16px;
+}
+
 .switch {
   display: inline-flex;
   align-items: center;
