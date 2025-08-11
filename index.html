@@ -18,16 +18,18 @@
           <img src="./assets/logo.svg" alt="Snake" />
           <span class="brand-name">NEON SNAKE</span>
         </div>
+
         <div class="hud">
           <div class="pill">Score: <span id="score">0</span></div>
           <div class="pill">Best: <span id="best">0</span></div>
         </div>
+
         <div class="controls-inline">
           <button class="btn primary" id="btnStart" title="Start (Enter)">
             Start
           </button>
           <button
-            class="btn"
+            class="btn secondary"
             id="btnPause"
             aria-pressed="false"
             title="Pause/Resume (Space)"
@@ -37,19 +39,6 @@
           <button class="btn secondary" id="btnRestart" title="Restart (R)">
             Restart
           </button>
-        </div>
-        <div class="mobile-toggle toggles-row">
-          <label class="switch">
-            <input type="checkbox" id="toggleDpad" />
-            <span class="slider" aria-hidden="true"></span>
-            <span class="switch-label">D-Pad</span>
-          </label>
-
-          <label class="switch">
-            <input type="checkbox" id="toggleHaptics" />
-            <span class="slider" aria-hidden="true"></span>
-            <span class="switch-label">Haptics</span>
-          </label>
         </div>
       </header>
 
@@ -69,7 +58,7 @@
       <div class="controls">
         <div class="help">
           Use arrow keys / WASD. Space = Pause. R = Restart. On mobile: use the
-          D‑pad.
+          D-pad.
         </div>
         <div class="dpad" id="dpad" aria-hidden="false">
           <div class="spacer"></div>
@@ -84,6 +73,118 @@
         </div>
       </div>
     </div>
+
+    <button class="settings-btn" id="btnSettings" aria-label="Settings">
+      <svg
+        viewBox="0 0 400 400"
+        fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <g id="XMLID_8_">
+          <polygon
+            points="133.3,26.7 160,26.7 160,0 133.3,0 106.7,0 80,0 80,26.7 106.7,26.7 "
+          ></polygon>
+          <polygon
+            points="80,53.3 80,26.7 53.3,26.7 53.3,53.3 26.7,53.3 0,53.3 0,80 26.7,80 53.3,80 53.3,106.7 80,106.7 80,80 "
+          ></polygon>
+          <polygon
+            points="160,53.3 160,80 160,106.7 186.7,106.7 186.7,80 186.7,53.3 186.7,26.7 160,26.7 "
+          ></polygon>
+          <polygon
+            points="373.3,53.3 346.7,53.3 320,53.3 293.3,53.3 266.7,53.3 240,53.3 213.3,53.3 213.3,80 240,80 266.7,80 293.3,80 320,80 346.7,80 373.3,80 400,80 400,53.3 "
+          ></polygon>
+          <polygon
+            points="106.7,106.7 80,106.7 80,133.3 106.7,133.3 133.3,133.3 160,133.3 160,106.7 133.3,106.7 "
+          ></polygon>
+          <polygon
+            points="293.3,160 320,160 320,133.3 293.3,133.3 266.7,133.3 240,133.3 240,160 266.7,160 "
+          ></polygon>
+          <polygon
+            points="133.3,186.7 106.7,186.7 80,186.7 53.3,186.7 26.7,186.7 0,186.7 0,213.3 26.7,213.3 53.3,213.3 80,213.3 106.7,213.3 133.3,213.3 160,213.3 186.7,213.3 186.7,186.7 160,186.7 "
+          ></polygon>
+          <polygon
+            points="240,186.7 240,160 213.3,160 213.3,186.7 213.3,213.3 213.3,240 240,240 240,213.3 "
+          ></polygon>
+          <polygon
+            points="346.7,186.7 346.7,160 320,160 320,186.7 320,213.3 320,240 346.7,240 346.7,213.3 373.3,213.3 400,213.3 400,186.7 373.3,186.7 "
+          ></polygon>
+          <polygon
+            points="266.7,240 240,240 240,266.7 266.7,266.7 293.3,266.7 320,266.7 320,240 293.3,240 "
+          ></polygon>
+          <polygon
+            points="133.3,293.3 160,293.3 160,266.7 133.3,266.7 106.7,266.7 80,266.7 80,293.3 106.7,293.3 "
+          ></polygon>
+          <polygon
+            points="80,320 80,293.3 53.3,293.3 53.3,320 26.7,320 0,320 0,346.7 26.7,346.7 53.3,346.7 53.3,373.3 80,373.3 80,346.7 "
+          ></polygon>
+          <polygon
+            points="160,320 160,346.7 160,373.3 186.7,373.3 186.7,346.7 186.7,320 186.7,293.3 160,293.3 "
+          ></polygon>
+          <polygon
+            points="346.7,320 320,320 293.3,320 266.7,320 240,320 213.3,320 213.3,346.7 240,346.7 266.7,346.7 293.3,346.7 320,346.7 346.7,346.7 373.3,346.7 400,346.7 400,320 373.3,320 "
+          ></polygon>
+          <polygon
+            points="106.7,373.3 80,373.3 80,400 106.7,400 133.3,400 160,400 160,373.3 133.3,373.3 "
+          ></polygon>
+        </g>
+      </svg>
+    </button>
+
+    <div class="settings-overlay" id="settingsOverlay">
+      <div
+        class="settings-panel"
+        role="dialog"
+        aria-labelledby="settingsTitle"
+        aria-modal="true"
+      >
+        <div class="settings-header">
+          <h2 id="settingsTitle">SETTINGS</h2>
+          <button
+            class="btn settings-close"
+            id="btnSettingsClose"
+            aria-label="Close"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M5 5h2v2H5V5zm4 4H7V7h2v2zm2 2H9V9h2v2zm2 0h-2v2H9v2H7v2H5v2h2v-2h2v-2h2v-2h2v2h2v2h2v2h2v-2h-2v-2h-2v-2h-2v-2zm2-2v2h-2V9h2zm2-2v2h-2V7h2zm0 0V5h2v2h-2z"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="settings-group">
+          <div class="switch-row">
+            <label class="switch">
+              <input type="checkbox" id="toggleDpad" />
+              <span class="slider" aria-hidden="true"></span>
+              <span class="switch-label">D-Pad</span>
+            </label>
+          </div>
+          <div class="switch-row">
+            <label class="switch">
+              <input type="checkbox" id="toggleHaptics" />
+              <span class="slider" aria-hidden="true"></span>
+              <span class="switch-label">Haptics</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <label class="select-label" for="themeSelect">Color Theme</label>
+          <select id="themeSelect" class="select">
+            <option value="neon" selected>Neon (Green–Cyan)</option>
+            <option value="violet">Violet (Purple–Pink)</option>
+            <option value="sunset">Sunset (Orange–Pink)</option>
+            <option value="ice">Ice (Cyan–Blue)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
     <script src="assets/js/main.js"></script>
   </body>
 </html>

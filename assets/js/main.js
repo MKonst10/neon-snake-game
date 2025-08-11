@@ -10,30 +10,60 @@
     return 21;
   }
 
-  const SWIPE_MIN_PX_BASE = 14;
-  const SWIPE_MIN_RATIO = 0.06;
-  const SWIPE_VEL_BONUS_MS = 120;
-  function vibrate(ms) {
-    if (!hapticsEnabled) return;
-    if (navigator.vibrate) {
-      try {
-        navigator.vibrate(ms);
-      } catch {}
-    }
-  }
+  const SWIPE_MIN_PX_BASE = 14,
+    SWIPE_MIN_RATIO = 0.06,
+    SWIPE_VEL_BONUS_MS = 120;
 
-  const COLORS = {
-    bg:
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--panel")
-        .trim() || "#191d3a",
-    grid:
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--grid")
-        .trim() || "#252a52",
-    snake: "#29f19c",
-    snakeHead: "#6aa8ff",
-    food: "#ffcf6b",
+  const THEME_KEY = "theme_v2";
+  const TOGGLE_KEY = "dpadEnabled_v1";
+  const HAPTICS_KEY = "hapticsEnabled_v1";
+  const HIGH_KEY = "snakeHighScore_v1";
+
+  const THEMES = {
+    neon: {
+      "--bg": "#0f1226",
+      "--panel": "#191d3a",
+      "--accent": "#29f19c",
+      "--accent-2": "#6aa8ff",
+      "--text": "#e7e8f1",
+      "--danger": "#ff6b6b",
+      "--grid": "#252a52",
+      "--glow": "0 0 12px rgba(41,241,156,.6)",
+      "--food": "#ffcf6b",
+    },
+    violet: {
+      "--bg": "#1b0f26",
+      "--panel": "#29193a",
+      "--accent": "#bd7bff",
+      "--accent-2": "#ff6ad5",
+      "--text": "#f2e7f5",
+      "--danger": "#ff6b6b",
+      "--grid": "#3b2752",
+      "--glow": "0 0 12px rgba(189,123,255,.6)",
+      "--food": "#ffd86b",
+    },
+    sunset: {
+      "--bg": "#26110f",
+      "--panel": "#3a1e19",
+      "--accent": "#ff7a59",
+      "--accent-2": "#ff4fb6",
+      "--text": "#f3e9e7",
+      "--danger": "#ff6b6b",
+      "--grid": "#523025",
+      "--glow": "0 0 12px rgba(255,122,89,.6)",
+      "--food": "#ffe16b",
+    },
+    ice: {
+      "--bg": "#0f1f26",
+      "--panel": "#19313a",
+      "--accent": "#5af0ff",
+      "--accent-2": "#6aa8ff",
+      "--text": "#e7f0f1",
+      "--danger": "#ff6b6b",
+      "--grid": "#254652",
+      "--glow": "0 0 12px rgba(90,240,255,.6)",
+      "--food": "#c8ff6b",
+    },
   };
 
   const canvas = document.getElementById("board");
@@ -46,10 +76,13 @@
   const btnPause = document.getElementById("btnPause");
   const btnRestart = document.getElementById("btnRestart");
   const dpadEl = document.getElementById("dpad");
+
+  const btnSettings = document.getElementById("btnSettings");
+  const settingsOverlay = document.getElementById("settingsOverlay");
+  const btnSettingsClose = document.getElementById("btnSettingsClose");
   const toggleDpadEl = document.getElementById("toggleDpad");
   const toggleHapticsEl = document.getElementById("toggleHaptics");
-  const HAPTICS_KEY = "hapticsEnabled_v1";
-  let hapticsEnabled = JSON.parse(localStorage.getItem(HAPTICS_KEY) ?? "true");
+  const themeSelect = document.getElementById("themeSelect");
 
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   function resizeCanvas() {
@@ -60,35 +93,46 @@
   new ResizeObserver(resizeCanvas).observe(canvas);
   resizeCanvas();
 
-  const storageKey = "snakeHighScore_v1";
-  let best = Number(localStorage.getItem(storageKey) || 0);
+  let best = Number(localStorage.getItem(HIGH_KEY) || 0);
   bestEl.textContent = best;
 
-  const TOGGLE_KEY = "dpadEnabled_v1";
   let dpadEnabled = JSON.parse(localStorage.getItem(TOGGLE_KEY) ?? "true");
+  let hapticsEnabled = JSON.parse(localStorage.getItem(HAPTICS_KEY) ?? "true");
+  let currentTheme = localStorage.getItem(THEME_KEY) || "neon";
 
-  function applyDpadPreference() {
-    document.body.classList.toggle("dpad-off", !dpadEnabled);
-    if (toggleDpadEl) toggleDpadEl.checked = dpadEnabled;
-    fitLayout();
-  }
-  if (toggleDpadEl) {
-    toggleDpadEl.addEventListener("change", (e) => {
-      dpadEnabled = e.target.checked;
-      localStorage.setItem(TOGGLE_KEY, JSON.stringify(dpadEnabled));
-      applyDpadPreference();
-    });
+  const COLORS = {
+    bg: "#191d3a",
+    grid: "#252a52",
+    snake: "#29f19c",
+    snakeHead: "#6aa8ff",
+    food: "#ffcf6b",
+  };
+  function refreshColors() {
+    const cs = getComputedStyle(document.documentElement);
+    COLORS.bg = cs.getPropertyValue("--panel").trim() || COLORS.bg;
+    COLORS.grid = cs.getPropertyValue("--grid").trim() || COLORS.grid;
+    COLORS.snake = cs.getPropertyValue("--accent").trim() || COLORS.snake;
+    COLORS.snakeHead =
+      cs.getPropertyValue("--accent-2").trim() || COLORS.snakeHead;
+    COLORS.food = cs.getPropertyValue("--food").trim() || COLORS.food;
   }
 
-  function applyHapticsPreference() {
-    if (toggleHapticsEl) toggleHapticsEl.checked = hapticsEnabled;
+  function applyTheme(name) {
+    const vars = THEMES[name] || THEMES.neon;
+    const root = document.documentElement;
+
+    Object.keys(vars).forEach((k) => root.style.setProperty(k, vars[k]));
+
+    localStorage.setItem(THEME_KEY, name);
+    currentTheme = name;
+    refreshColors();
   }
-  if (toggleHapticsEl) {
-    toggleHapticsEl.addEventListener("change", (e) => {
-      hapticsEnabled = e.target.checked;
-      localStorage.setItem(HAPTICS_KEY, JSON.stringify(hapticsEnabled));
-      applyHapticsPreference();
-    });
+
+  function vibrate(ms) {
+    if (!hapticsEnabled) return;
+    if (navigator.vibrate) {
+      navigator.vibrate(ms);
+    }
   }
 
   let cells = gridForWidth(window.innerWidth),
@@ -110,7 +154,6 @@
 
   const root = document.documentElement;
   const headerEl = document.querySelector("header");
-  const controlsWrap = document.querySelector(".controls");
 
   function fitLayout() {
     const isMobile = window.innerWidth < 600;
@@ -126,8 +169,8 @@
 
     const vh = window.innerHeight;
     const headerH = headerEl?.getBoundingClientRect().height || 0;
-    const topGaps = 16;
-    const bottomSafe = 18;
+    const topGaps = 16,
+      bottomSafe = 18;
     let available = vh - headerH - topGaps - bottomSafe;
 
     const gap = 8;
@@ -170,9 +213,62 @@
     root.style.setProperty("--board-max", `${Math.round(boardSize)}px`);
   }
 
-  fitLayout();
+  function pauseForSettings() {
+    if (alive && started && !paused) {
+      paused = true;
+      btnPause.setAttribute("aria-pressed", "true");
+      btnPause.textContent = "Resume";
+      setOverlay(true, "Paused — Settings");
+    }
+  }
+
+  function openSettings() {
+    settingsOverlay.classList.add("active");
+    pauseForSettings();
+    btnSettingsClose?.focus({ preventScroll: true });
+  }
+
+  function closeSettings() {
+    settingsOverlay.classList.remove("active");
+    btnSettings?.focus({ preventScroll: true });
+  }
+
+  btnSettings?.addEventListener("click", openSettings);
+  btnSettingsClose?.addEventListener("click", closeSettings);
+  settingsOverlay?.addEventListener("click", (e) => {
+    if (e.target === settingsOverlay) closeSettings();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (!settingsOverlay?.hidden && e.key === "Escape") closeSettings();
+  });
+
+  function applyDpadPreference() {
+    document.body.classList.toggle("dpad-off", !dpadEnabled);
+    if (toggleDpadEl) toggleDpadEl.checked = dpadEnabled;
+    localStorage.setItem(TOGGLE_KEY, JSON.stringify(dpadEnabled));
+    fitLayout();
+  }
+  function applyHapticsPreference() {
+    if (toggleHapticsEl) toggleHapticsEl.checked = hapticsEnabled;
+    localStorage.setItem(HAPTICS_KEY, JSON.stringify(hapticsEnabled));
+  }
+
+  toggleDpadEl?.addEventListener("change", (e) => {
+    dpadEnabled = e.target.checked;
+    applyDpadPreference();
+  });
+  toggleHapticsEl?.addEventListener("change", (e) => {
+    hapticsEnabled = e.target.checked;
+    applyHapticsPreference();
+  });
+  themeSelect?.addEventListener("change", (e) => {
+    applyTheme(e.target.value);
+  });
+
+  applyTheme(currentTheme);
   applyDpadPreference();
   applyHapticsPreference();
+  fitLayout();
 
   window.addEventListener(
     "resize",
@@ -189,24 +285,20 @@
 
   function initGame() {
     cells = gridForWidth(window.innerWidth);
-
-    const cx = Math.floor(cells / 2);
-    const cy = Math.floor(cells / 2);
-
+    const cx = Math.floor(cells / 2),
+      cy = Math.floor(cells / 2);
     snake = [
       { x: cx, y: cy },
       { x: cx - 1, y: cy },
     ];
     dir = { x: 1, y: 0 };
     pendingDir = dir;
-
     score = 0;
     movesPerSec = BASE_SPEED;
     alive = true;
     paused = true;
     lastStepAt = performance.now();
     accumulator = 0;
-
     placeFood();
     updateScore(0);
     setOverlay(true, "Click Start to Play");
@@ -224,7 +316,7 @@
     if (score > best) {
       best = score;
       bestEl.textContent = best;
-      localStorage.setItem(storageKey, String(best));
+      localStorage.setItem(HIGH_KEY, String(best));
     }
     const target =
       BASE_SPEED + Math.floor(score / SPEEDUP_EVERY) * SPEEDUP_STEP;
@@ -246,16 +338,16 @@
   function step() {
     if (!alive || paused) return;
     if (pendingDir.x !== -dir.x || pendingDir.y !== -dir.y) dir = pendingDir;
-
     const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
     if (head.x < 0 || head.y < 0 || head.x >= cells || head.y >= cells)
       return die();
     if (snake.some((s, i) => i > 0 && s.x === head.x && s.y === head.y))
       return die();
-
     snake.unshift(head);
     if (head.x === food.x && head.y === food.y) {
       updateScore(1);
+      showFoodFlash(food.x, food.y);
+      showScorePopup(food.x, food.y, "+1");
       placeFood();
     } else {
       snake.pop();
@@ -263,7 +355,7 @@
   }
 
   function die() {
-    vibrate(70);
+    vibrate([80, 40, 80]);
     alive = false;
     paused = true;
     setOverlay(true, `Game Over — Score ${score}`);
@@ -281,7 +373,6 @@
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, w, h);
 
-    // grid
     ctx.strokeStyle = COLORS.grid;
     ctx.lineWidth = Math.max(1, DPR);
     ctx.beginPath();
@@ -293,18 +384,16 @@
     }
     ctx.stroke();
 
-    drawRoundedRect(
-      food.x * cell,
-      food.y * cell,
-      cell,
-      cell,
-      Math.floor(cell * 0.25),
-      COLORS.food
-    );
+    const t = performance.now();
+    const pulse = 1 + 0.08 * Math.sin(t / 150);
+    const fx = food.x * cell + (cell * (1 - pulse)) / 2;
+    const fy = food.y * cell + (cell * (1 - pulse)) / 2;
+    const fs = cell * pulse;
+    drawRoundedRect(fx, fy, fs, fs, Math.floor(cell * 0.25), COLORS.food);
 
     for (let i = snake.length - 1; i >= 0; i--) {
-      const s = snake[i];
-      const isHead = i === 0;
+      const s = snake[i],
+        isHead = i === 0;
       drawRoundedRect(
         s.x * cell,
         s.y * cell,
@@ -318,13 +407,12 @@
 
     if (dirAnimFrames > 0) {
       const head = snake[0];
-      const cx = head.x * cell + cell / 2;
-      const cy = head.y * cell + cell / 2;
-      const len = cell * 0.55;
-      const w2 = cell * 0.35;
-      const ax = cx + dirAnimVec.x * (cell * 0.6);
-      const ay = cy + dirAnimVec.y * (cell * 0.6);
-
+      const cx = head.x * cell + cell / 2,
+        cy = head.y * cell + cell / 2;
+      const len = cell * 0.55,
+        w2 = cell * 0.35;
+      const ax = cx + dirAnimVec.x * (cell * 0.6),
+        ay = cy + dirAnimVec.y * (cell * 0.6);
       ctx.save();
       ctx.globalAlpha = Math.max(0, dirAnimFrames / 10);
       ctx.fillStyle = COLORS.snakeHead;
@@ -362,8 +450,8 @@
 
   function drawEyes(head) {
     const cx = head.x * cell + cell / 2,
-      cy = head.y * cell + cell / 2,
-      eyeOffset = 0.18 * cell,
+      cy = head.y * cell + cell / 2;
+    const eyeOffset = 0.18 * cell,
       eyeR = Math.max(1.2 * DPR, 0.09 * cell);
     ctx.fillStyle = "white";
     if (dir.x !== 0) {
@@ -407,6 +495,28 @@
     }
   }
 
+  function showFoodFlash(x, y) {
+    const el = document.createElement("div");
+    el.className = "food-flash";
+    const size = cell;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.left = `${x * cell}px`;
+    el.style.top = `${y * cell}px`;
+    canvas.parentElement.appendChild(el);
+    setTimeout(() => el.remove(), 400);
+  }
+
+  function showScorePopup(x, y, text) {
+    const el = document.createElement("div");
+    el.className = "score-popup";
+    el.textContent = text;
+    el.style.left = `${x * cell + cell / 4}px`;
+    el.style.top = `${y * cell - cell / 2}px`;
+    canvas.parentElement.appendChild(el);
+    setTimeout(() => el.remove(), 600);
+  }
+
   function loop(now) {
     const stepInterval = 1000 / movesPerSec;
     accumulator += now - (lastStepAt || now);
@@ -433,7 +543,6 @@
     if (!alive || paused) return;
     if (d.x === -dir.x && d.y === -dir.y) return;
     pendingDir = d;
-
     dirAnimVec = { x: d.x, y: d.y };
     dirAnimFrames = 10;
     vibrate(8);
@@ -461,16 +570,17 @@
     }
   });
 
-  btnPause.addEventListener("click", () => {
+  btnPause?.addEventListener("click", () => {
     if (!started) return;
     togglePause();
   });
-  btnRestart.addEventListener("click", restart);
-  btnStart.addEventListener("click", startGame);
+  btnRestart?.addEventListener("click", restart);
+  btnStart?.addEventListener("click", startGame);
 
-  dpadEl.addEventListener("click", (e) => {
+  dpadEl?.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-dir]");
     if (!b) return;
+    vibrate(20);
     const map = {
       up: { x: 0, y: -1 },
       down: { x: 0, y: 1 },
@@ -481,7 +591,6 @@
   });
 
   let touchStart = null;
-
   canvas.addEventListener(
     "touchstart",
     (e) => {
@@ -503,22 +612,17 @@
       if (!touchStart || touchStart.decided) return;
       const t = e.touches[0];
       if (!t) return;
-
-      const dx = t.clientX - touchStart.x;
-      const dy = t.clientY - touchStart.y;
+      const dx = t.clientX - touchStart.x,
+        dy = t.clientY - touchStart.y;
       const ax = Math.abs(dx),
         ay = Math.abs(dy);
-
       const vw = Math.min(window.innerWidth, window.innerHeight);
       let threshold = Math.max(SWIPE_MIN_PX_BASE, vw * SWIPE_MIN_RATIO);
       const dt = performance.now() - touchStart.time;
       if (dt < SWIPE_VEL_BONUS_MS) threshold *= 0.7;
-
       if (Math.max(ax, ay) < threshold) return;
-
       if (ax > ay) setDir({ x: Math.sign(dx), y: 0 });
       else setDir({ x: 0, y: Math.sign(dy) });
-
       touchStart.decided = true;
       e.preventDefault();
     },
@@ -572,6 +676,8 @@
     };
   }
 
+  applyTheme(currentTheme);
+  refreshColors();
   initGame();
   requestAnimationFrame(loop);
 })();
