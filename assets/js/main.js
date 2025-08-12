@@ -108,7 +108,7 @@
   let best = Number(localStorage.getItem(HIGH_KEY) || 0);
   bestEl.textContent = best;
 
-  let dpadEnabled = JSON.parse(localStorage.getItem(TOGGLE_KEY) ?? "true");
+  let dpadEnabled = JSON.parse(localStorage.getItem(TOGGLE_KEY) ?? "false");
   let hapticsEnabled = JSON.parse(localStorage.getItem(HAPTICS_KEY) ?? "true");
   let currentTheme = localStorage.getItem(THEME_KEY) || "neon";
 
