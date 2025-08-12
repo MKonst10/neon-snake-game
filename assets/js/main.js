@@ -120,9 +120,7 @@
   function applyTheme(name) {
     const vars = THEMES[name] || THEMES.neon;
     const root = document.documentElement;
-
     Object.keys(vars).forEach((k) => root.style.setProperty(k, vars[k]));
-
     localStorage.setItem(THEME_KEY, name);
     currentTheme = name;
     refreshColors();
@@ -130,8 +128,10 @@
 
   function vibrate(ms) {
     if (!hapticsEnabled) return;
-    if (navigator.vibrate) {
-      navigator.vibrate(ms);
+    if ("vibrate" in navigator && typeof navigator.vibrate === "function") {
+      try {
+        navigator.vibrate(ms);
+      } catch {}
     }
   }
 
@@ -151,6 +151,11 @@
 
   let dirAnimFrames = 0,
     dirAnimVec = { x: 0, y: 0 };
+
+  const TRAIL_MS = 600;
+  let trail = [];
+  let particles = [];
+  let lastRenderTS = performance.now();
 
   const root = document.documentElement;
   const headerEl = document.querySelector("header");
@@ -221,13 +226,11 @@
       setOverlay(true, "Paused — Settings");
     }
   }
-
   function openSettings() {
     settingsOverlay.classList.add("active");
     pauseForSettings();
     btnSettingsClose?.focus({ preventScroll: true });
   }
-
   function closeSettings() {
     settingsOverlay.classList.remove("active");
     btnSettings?.focus({ preventScroll: true });
@@ -239,7 +242,8 @@
     if (e.target === settingsOverlay) closeSettings();
   });
   window.addEventListener("keydown", (e) => {
-    if (!settingsOverlay?.hidden && e.key === "Escape") closeSettings();
+    if (settingsOverlay.classList.contains("active") && e.key === "Escape")
+      closeSettings();
   });
 
   function applyDpadPreference() {
@@ -299,6 +303,8 @@
     paused = true;
     lastStepAt = performance.now();
     accumulator = 0;
+    particles = [];
+    trail = [];
     placeFood();
     updateScore(0);
     setOverlay(true, "Click Start to Play");
@@ -344,6 +350,13 @@
     if (snake.some((s, i) => i > 0 && s.x === head.x && s.y === head.y))
       return die();
     snake.unshift(head);
+    trail.push({ x: head.x, y: head.y, t: performance.now() });
+    const cutoff = performance.now() - TRAIL_MS - 50;
+    if (trail.length > 0 && trail[0].t < cutoff) {
+      let i = 0;
+      while (i < trail.length && trail[i].t < cutoff) i++;
+      if (i > 0) trail.splice(0, i);
+    }
     if (head.x === food.x && head.y === food.y) {
       updateScore(1);
       showFoodFlash(food.x, food.y);
@@ -356,6 +369,7 @@
 
   function die() {
     vibrate([80, 40, 80]);
+    spawnDeathParticles();
     alive = false;
     paused = true;
     setOverlay(true, `Game Over — Score ${score}`);
@@ -365,6 +379,10 @@
   }
 
   function draw() {
+    const now = performance.now();
+    const dt = Math.min(64, now - lastRenderTS);
+    lastRenderTS = now;
+
     const w = canvas.width,
       h = canvas.height;
     cell = Math.floor(Math.min(w, h) / cells);
@@ -373,8 +391,10 @@
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, w, h);
 
+    ctx.save();
     ctx.strokeStyle = COLORS.grid;
     ctx.lineWidth = Math.max(1, DPR);
+    ctx.globalAlpha = 0.55 + 0.15 * Math.sin(now / 1200);
     ctx.beginPath();
     for (let i = 1; i < cells; i++) {
       ctx.moveTo(i * cell + 0.5, 0);
@@ -383,13 +403,15 @@
       ctx.lineTo(cells * cell, i * cell + 0.5);
     }
     ctx.stroke();
+    ctx.restore();
 
-    const t = performance.now();
-    const pulse = 1 + 0.08 * Math.sin(t / 150);
+    const pulse = 1 + 0.08 * Math.sin(now / 150);
     const fx = food.x * cell + (cell * (1 - pulse)) / 2;
     const fy = food.y * cell + (cell * (1 - pulse)) / 2;
     const fs = cell * pulse;
     drawRoundedRect(fx, fy, fs, fs, Math.floor(cell * 0.25), COLORS.food);
+
+    drawTrail(now);
 
     for (let i = snake.length - 1; i >= 0; i--) {
       const s = snake[i],
@@ -405,7 +427,7 @@
       if (isHead) drawEyes(s);
     }
 
-    if (dirAnimFrames > 0) {
+    if (dirAnimFrames > 0 && snake[0]) {
       const head = snake[0];
       const cx = head.x * cell + cell / 2,
         cy = head.y * cell + cell / 2;
@@ -433,6 +455,8 @@
       ctx.restore();
       dirAnimFrames--;
     }
+
+    updateAndDrawParticles(dt);
   }
 
   function drawRoundedRect(x, y, w, h, r, fill) {
@@ -495,26 +519,81 @@
     }
   }
 
-  function showFoodFlash(x, y) {
-    const el = document.createElement("div");
-    el.className = "food-flash";
-    const size = cell;
-    el.style.width = `${size}px`;
-    el.style.height = `${size}px`;
-    el.style.left = `${x * cell}px`;
-    el.style.top = `${y * cell}px`;
-    canvas.parentElement.appendChild(el);
-    setTimeout(() => el.remove(), 400);
+  function drawTrail(now) {
+    if (trail.length === 0) return;
+    ctx.save();
+    for (let i = 0; i < trail.length; i++) {
+      const p = trail[i];
+      const age = now - p.t;
+      if (age > TRAIL_MS) continue;
+      const a = 1 - age / TRAIL_MS;
+      const size = cell * (0.75 + 0.25 * a);
+      const px = p.x * cell + (cell - size) / 2;
+      const py = p.y * cell + (cell - size) / 2;
+      ctx.globalAlpha = a * 0.6;
+      ctx.shadowColor = COLORS.snake;
+      ctx.shadowBlur = 12;
+      drawRoundedRect(px, py, size, size, Math.floor(size * 0.2), COLORS.snake);
+    }
+    ctx.restore();
   }
 
-  function showScorePopup(x, y, text) {
-    const el = document.createElement("div");
-    el.className = "score-popup";
-    el.textContent = text;
-    el.style.left = `${x * cell + cell / 4}px`;
-    el.style.top = `${y * cell - cell / 2}px`;
-    canvas.parentElement.appendChild(el);
-    setTimeout(() => el.remove(), 600);
+  function spawnDeathParticles() {
+    particles = [];
+    const head = snake[0];
+    for (let i = 0; i < snake.length; i++) {
+      const s = snake[i];
+      const px = s.x * cell + cell / 2;
+      const py = s.y * cell + cell / 2;
+      const ang =
+        Math.atan2(
+          py - (head.y * cell + cell / 2),
+          px - (head.x * cell + cell / 2)
+        ) +
+        (Math.random() - 0.5) * 0.8;
+      const speed = cell * (0.05 + Math.random() * 0.25);
+      particles.push({
+        x: px,
+        y: py,
+        vx: Math.cos(ang) * speed,
+        vy: Math.sin(ang) * speed - cell * 0.02,
+        life: 700 + Math.random() * 400,
+        age: 0,
+        size: Math.max(2, cell * 0.2 + Math.random() * cell * 0.2),
+        color: i === 0 ? COLORS.snakeHead : COLORS.snake,
+        rot: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 0.04,
+      });
+    }
+  }
+
+  function updateAndDrawParticles(dt) {
+    if (particles.length === 0) return;
+    const g = cell * 0.0004 * dt;
+    ctx.save();
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.age += dt;
+      if (p.age >= p.life) {
+        particles.splice(i, 1);
+        continue;
+      }
+      p.vy += g;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+
+      const a = 1 - p.age / p.life;
+      ctx.globalAlpha = Math.max(0, a);
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 12;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    ctx.restore();
   }
 
   function loop(now) {
@@ -666,6 +745,28 @@
     setOverlay(false);
     btnStart.hidden = true;
     btnPause.textContent = "Pause";
+  }
+
+  function showFoodFlash(gridX, gridY) {
+    const el = document.createElement("div");
+    el.className = "food-flash";
+    const size = cell;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.left = `${gridX * cell}px`;
+    el.style.top = `${gridY * cell}px`;
+    canvas.parentElement.appendChild(el);
+    setTimeout(() => el.remove(), 400);
+  }
+
+  function showScorePopup(gridX, gridY, text) {
+    const el = document.createElement("div");
+    el.className = "score-popup";
+    el.textContent = text;
+    el.style.left = `${gridX * cell + cell / 4}px`;
+    el.style.top = `${gridY * cell - cell / 2}px`;
+    canvas.parentElement.appendChild(el);
+    setTimeout(() => el.remove(), 600);
   }
 
   function debounce(fn, wait) {
