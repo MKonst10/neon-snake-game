@@ -19,6 +19,7 @@
   const HAPTICS_KEY = "hapticsEnabled_v1";
   const HIGH_KEY = "snakeHighScore_v1";
   const MODE_KEY = "snakeMode_v1";
+  const SOUND_KEY = "snakeSound_v1";
 
   const THEMES = {
     neon: {
@@ -85,6 +86,159 @@
   const toggleHapticsEl = document.getElementById("toggleHaptics");
   const themeSelect = document.getElementById("themeSelect");
   const modeSelect = document.getElementById("modeSelect");
+
+  let soundEnabled = JSON.parse(localStorage.getItem(SOUND_KEY) ?? "true");
+  let audioCtx = null,
+    masterGain = null,
+    audioUnlocked = false;
+
+  function ensureAudio() {
+    if (audioUnlocked) return;
+    try {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = soundEnabled ? 0.35 : 0.0;
+        masterGain.connect(audioCtx.destination);
+      }
+      const o = audioCtx.createOscillator();
+      o.connect(masterGain);
+      o.frequency.value = 1;
+      o.start(0);
+      o.stop(audioCtx.currentTime + 0.01);
+      audioUnlocked = true;
+    } catch (e) {}
+  }
+
+  function setSoundEnabled(v) {
+    soundEnabled = v;
+    localStorage.setItem(SOUND_KEY, JSON.stringify(v));
+    if (masterGain) masterGain.gain.value = v ? 0.35 : 0.0;
+  }
+
+  function playTone({
+    freq = 440,
+    type = "sine",
+    dur = 0.12,
+    attack = 0.005,
+    release = 0.08,
+    detune = 0,
+    vol = 1,
+  }) {
+    if (!soundEnabled) return;
+    ensureAudio();
+    const t0 = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    if (detune) osc.detune.setValueAtTime(detune, t0);
+
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol, t0 + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + attack + release);
+
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(t0);
+    osc.stop(t0 + attack + release + 0.02);
+  }
+
+  const sfx = {
+    eat(type = "normal") {
+      switch (type) {
+        case "speed":
+          playTone({
+            freq: 640,
+            type: "square",
+            dur: 0.14,
+            attack: 0.005,
+            release: 0.12,
+            vol: 0.9,
+          });
+          playTone({
+            freq: 960,
+            type: "square",
+            dur: 0.12,
+            attack: 0.005,
+            release: 0.1,
+            vol: 0.6,
+            detune: +8,
+          });
+          break;
+        case "slow":
+          playTone({
+            freq: 320,
+            type: "sine",
+            dur: 0.18,
+            attack: 0.006,
+            release: 0.16,
+            vol: 0.8,
+          });
+          break;
+        case "bonus":
+          playTone({
+            freq: 740,
+            type: "triangle",
+            dur: 0.18,
+            attack: 0.004,
+            release: 0.15,
+            vol: 1,
+          });
+          playTone({
+            freq: 1110,
+            type: "triangle",
+            dur: 0.16,
+            attack: 0.004,
+            release: 0.14,
+            vol: 0.8,
+          });
+          break;
+        default:
+          playTone({
+            freq: 520,
+            type: "triangle",
+            dur: 0.12,
+            attack: 0.005,
+            release: 0.1,
+            vol: 0.9,
+          });
+      }
+    },
+    crash() {
+      const bursts = 4;
+      for (let i = 0; i < bursts; i++) {
+        const base = 140 + i * 20;
+        playTone({
+          freq: base,
+          type: "sawtooth",
+          dur: 0.1,
+          attack: 0.003,
+          release: 0.1,
+          vol: 0.7,
+        });
+      }
+    },
+  };
+
+  btnStart?.addEventListener("click", () => {
+    ensureAudio();
+  });
+  window.addEventListener(
+    "keydown",
+    () => {
+      ensureAudio();
+    },
+    { once: true }
+  );
+  canvas.addEventListener(
+    "touchstart",
+    () => {
+      ensureAudio();
+    },
+    { once: true, passive: true }
+  );
 
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   function resizeCanvas() {
@@ -282,6 +436,13 @@
     applyTheme(e.target.value);
     refreshColors();
   });
+  const toggleSoundEl = document.getElementById("toggleSound");
+  if (toggleSoundEl) {
+    toggleSoundEl.checked = soundEnabled;
+    toggleSoundEl.addEventListener("change", (e) => {
+      setSoundEnabled(e.target.checked);
+    });
+  }
 
   applyTheme(currentTheme);
   applyDpadPreference();
@@ -428,29 +589,33 @@
           case "normal":
             updateScore(1);
             showScorePopup(food.x, food.y, "+1");
+            sfx.eat("normal");
             break;
           case "speed":
             movesPerSec = Math.min(20, BASE_SPEED + 5);
             speedEffectUntil = now + 5000;
             updateScore(1);
             showScorePopup(food.x, food.y, "+Speed");
+            sfx.eat("speed");
             break;
           case "slow":
             movesPerSec = Math.max(2, BASE_SPEED - 2);
             speedEffectUntil = now + 5000;
             updateScore(1);
             showScorePopup(food.x, food.y, "Slow");
+            sfx.eat("slow");
             break;
           case "bonus":
             updateScore(5);
             showScorePopup(food.x, food.y, "+5");
+            sfx.eat("bonus");
             break;
         }
       } else {
         updateScore(1);
         showScorePopup(food.x, food.y, "+1");
+        sfx.eat("normal");
       }
-
       showFoodFlash(food.x, food.y);
       placeFood();
     } else {
@@ -471,6 +636,7 @@
     btnStart.hidden = false;
     btnStart.textContent = "Start";
     started = false;
+    sfx.crash();
   }
 
   function draw() {
